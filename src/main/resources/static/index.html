@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Generator and Solver</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('background-image.png'); /* Specify your background image URL */
+            background-size: cover; /* Cover the entire viewport */
+            background-position: center; /* Center the background image */
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .controls {
+            margin-bottom: 20px;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background for controls */
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        label {
+            margin-right: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+        select, button {
+            padding: 8px;
+            font-size: 14px;
+            border: none;
+            border-radius: 3px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        select {
+            margin-right: 10px;
+        }
+        .buttons {
+            margin-top: 10px;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 0 auto;
+            
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 10px; /* Rounded corners for the entire table */
+            overflow: hidden; /* Ensure rounded corners are applied properly */
+        }
+        td {
+            border: 1px solid #000000;
+            width: 40px;
+            height: 40px;
+            text-align: center;
+            font-size: 20px;
+            background-color: #fff;
+            border-radius: 5px; /* Rounded corners for table cells */
+        }
+        .empty {
+            background-color: #eee;
+        }
+        .solved {
+            background-color: #83B361;
+            color: white;
+        }
+        .current {
+            background-color: #f44336;
+            color: white;
+        }
+        .conflict {
+            background-color: #f44336;
+            color: white;
+        }
+        .fuck{
+            padding: 15px;
+
+  background-color: #85b77d;
+
+  border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sudoku Generator and Solver</h1>
+    <div class="controls">
+        <label for="difficulty">Select Difficulty:</label>
+        <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+        </select>
+        <label for="speed">Select Speed:</label>
+        <select id="speed">
+            <option value="slow">Slow</option>
+            <option value="fast">Fast</option>
+            <option value="very-fast">Very Fast</option>
+        </select>
+        <div class="buttons">
+            <button onclick="generateSudoku()">Generate Sudoku</button>
+            <button onclick="solveSudoku()">Solve Sudoku</button>
+        </div>
+    </div>
+    <div class="fuck">
+    <table id="sudoku-table"></table>
+    </div>
+    <script>
+        let puzzle;
+
+        function generateSudoku() {
+            const difficulty = document.getElementById('difficulty').value;
+            fetch(`/generate-sudoku?difficulty=${difficulty}`)
+                .then(response => response.json())
+                .then(data => {
+                    puzzle = data;
+                    const table = document.getElementById('sudoku-table');
+                    table.innerHTML = '';
+                    for (let i = 0; i < 9; i++) {
+                        const row = table.insertRow();
+                        for (let j = 0; j < 9; j++) {
+                            const cell = row.insertCell();
+                            cell.textContent = puzzle[i][j] !== 0 ? puzzle[i][j] : '';
+                            if (puzzle[i][j] === 0) {
+                                cell.classList.add('empty');
+                            }
+                        }
+                    }
+                });
+        }
+
+        function solveSudoku() {
+            const speed = document.getElementById('speed').value;
+            const intervalDuration = getIntervalDuration(speed);
+            fetch('/solve-sudoku', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(puzzle)
+            })
+            .then(response => response.json())
+            .then(steps => {
+                let index = 0;
+                const interval = setInterval(() => {
+                    if (index >= steps.length) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    const [row, col, num, conflicts] = steps[index];
+                    puzzle[row][col] = num;
+                    updateTable(row, col, conflicts);
+                    index++;
+                }, intervalDuration);
+            });
+        }
+
+        function updateTable(row, col, conflicts) {
+            const table = document.getElementById('sudoku-table');
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const cell = table.rows[i].cells[j];
+                    cell.textContent = puzzle[i][j] !== 0 ? puzzle[i][j] : '';
+                    cell.className = '';
+                    if (puzzle[i][j] === 0) {
+                        cell.classList.add('empty');
+                    }
+                    if (i === row && j === col) {
+                        cell.classList.add('current');
+                    } else if (puzzle[i][j] !== 0) {
+                        cell.classList.add('solved');
+                    }
+                    if (conflicts && conflicts.includes(`${i}${j}`)) {
+                        cell.classList.add('conflict');
+                    }
+                }
+            }
+        }
+
+        function getIntervalDuration(speed) {
+            switch (speed) {
+                case 'slow':
+                    return 300;
+                case 'fast':
+                    return 100;
+                case 'very-fast':
+                    return 50;
+                default:
+                    return 100;
+            }
+        }
+    </script>
+</body>
+</html>
